@@ -7,8 +7,6 @@ import glob
 import os
 import shutil
 import subprocess
-from os.path import dirname as pdirname
-from os.path import join as pjoin
 from pathlib import Path
 
 
@@ -126,18 +124,14 @@ def run_string_cmd_in_conda(
 
     This is useful when the command to be run contains &&, etc.
 
-    NOTE: use `conda activate` instead of `conda run` in this verison, so that we can
-          run commands that contain `&&`, etc.
+    Execute through bash inside conda so compound commands retain their quoting
+    and the returned status belongs to the test command.
     """
-    conda_bin_path = os.getenv("CONDA_EXE")  # for calling conda
-    if conda_bin_path is None:
-        raise RuntimeError("Env variable CONDA_EXE is not set")
-    conda_root_dir = pdirname(pdirname(conda_bin_path))
-    conda_script_path = pjoin(conda_root_dir, "etc", "profile.d", "conda.sh")
-    command = command.replace("'", '"')
-    conda_cmd = f"bash -c 'source {conda_script_path} ; conda activate {env_name} ; {command} ; conda deactivate'"
-    print(f"Running command: {conda_cmd}")
-    return subprocess.run(conda_cmd, shell=True, **kwargs)
+    # conda run preserves quoting and the test process exit code.
+    return subprocess.run(
+        ["conda", "run", "--no-capture-output", "-n", env_name, "bash", "-c", command],
+        **kwargs,
+    )
 
 
 def create_dir_if_not_exists(dir_path: str):

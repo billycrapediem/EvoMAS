@@ -23,6 +23,7 @@ import re
 from typing import Any, Optional, Dict
 
 from src.models.model import get_model
+from src.models.config import pipeline_models
 
 logger = logging.getLogger(__name__)
 
@@ -246,7 +247,7 @@ class LLMAsJudgeEvaluator:
 
     def __init__(
         self,
-        model_id: str = "bedrock:us.anthropic.claude-3-5-sonnet-20241022-v2:0",
+        model_id: Optional[str] = None,
         temperature: float = 0.0,
         max_tokens: int = 1024,
         dataset_name: str = ""
@@ -260,6 +261,9 @@ class LLMAsJudgeEvaluator:
             max_tokens: Max tokens for judge response
             dataset_name: Dataset name (reserved for future per-dataset prompts)
         """
+        model_id = model_id or pipeline_models()[1]
+        if not model_id:
+            raise ValueError("Set MODEL_ID or the role-specific model override in .env")
         self.model_id = model_id
         self.temperature = temperature
         self.max_tokens = max_tokens

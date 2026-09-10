@@ -179,6 +179,11 @@ def parse_log_pytest(log: str) -> Dict[str, str]:
             if len(test_case) <= 1:
                 continue
             test_status_map[test_case[1]] = test_case[0]
+    # Verbose pytest also emits "path::test PASSED" rather than status first.
+    for line in log.splitlines():
+        match = re.match(r"^(\S+)\s+(PASSED|FAILED|SKIPPED|ERROR)\b", line)
+        if match:
+            test_status_map[match.group(1)] = match.group(2)
     return test_status_map
 
 
@@ -417,6 +422,13 @@ def evaluate_patch(
         fail_to_pass = task.get('FAIL_TO_PASS', [])
         pass_to_pass = task.get('PASS_TO_PASS', [])
         test_patch = task.get('test_patch', '')
+        if not fail_to_pass or not test_patch.strip() or not patch_content.strip():
+            return {"error": "missing_required_tests_or_patch", "instance_id": instance_id}
+        for command in setup.get('eval_commands', []):
+            completed = run_string_cmd_in_conda(command, env_name, cwd=repo_path,
+                                                capture_output=True, text=True, timeout=600)
+            if completed.returncode:
+                return {"error": "evaluation_setup_failed", "instance_id": instance_id}
 
         print(f"FAIL_TO_PASS tests: {len(fail_to_pass)}")
         print(f"PASS_TO_PASS tests: {len(pass_to_pass)}")
@@ -424,12 +436,12 @@ def evaluate_patch(
         # Apply test_patch first (filters which tests to run)
         with apply_patch(test_patch, str(repo_path)) as test_patch_applied:
             if not test_patch_applied:
-                print(f"Test patch may not have applied cleanly")
+                return {"error": "test_patch_apply_failed", "instance_id": instance_id}
 
             # Then apply solution patch
             with apply_patch(patch_content, str(repo_path)) as patch_applied:
                 if not patch_applied:
-                    print(f"Solution patch may not have applied cleanly")
+                    return {"error": "solution_patch_apply_failed", "instance_id": instance_id}
 
                 # Run tests with specific test names
                 repo_name = task['repo'].split('/')[-1]
@@ -453,6 +465,12 @@ def evaluate_patch(
         parser = get_parser_for_repo(repo_name)
         test_status_map = parser(test_output)
 
+        missing = [test for test in fail_to_pass + pass_to_pass if test not in test_status_map]
+        if missing or returncode not in (0, 1):
+            return {"error": "missing_test_results" if missing else "test_execution_failed",
+                    "instance_id": instance_id, "missing_tests": missing,
+                    "returncode": returncode, "test_status_map": test_status_map}
+
         # Calculate metrics (matching auto-code-rover)
         fail_to_pass_passed = 0
         fail_to_pass_failed = 0
@@ -467,14 +485,14 @@ def evaluate_patch(
                 fail_to_pass_failed += 1
 
         for test in pass_to_pass:
-            status = test_status_map.get(test, TestStatus.PASSED.value)
+            status = test_status_map.get(test, TestStatus.ERROR.value)
             if status == TestStatus.PASSED.value:
                 pass_to_pass_passed += 1
             else:
                 pass_to_pass_failed += 1
 
         # Determine resolution status
-        if fail_to_pass_passed == len(fail_to_pass) and pass_to_pass_failed == 0:
+        if fail_to_pass_passed == len(fail_to_pass) and pass_to_pass_failed == 0 and returncode == 0:
             resolved_status = ResolvedStatus.FULL.value
         elif fail_to_pass_passed > 0:
             resolved_status = ResolvedStatus.PARTIAL.value

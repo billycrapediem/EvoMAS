@@ -20,6 +20,7 @@ import logging
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Union
 
+from src.models.config import pipeline_models, constrain_agent_models
 from src.meta_model.metamodel import MetaModel
 from src.meta_model.selection import selection_operator, select_with_diversity
 from src.meta_model.reward import compute_reward
@@ -39,21 +40,10 @@ def fmt_acc(v):
 # EVOMAS CONFIGURATION PARAMETERS
 # ============================================================================
 
-# Meta-Model Settings
-# Meta-model (planning / mutation / crossover / memory operators): Claude Sonnet 4.5.
-META_MODEL_ID = "bedrock:global.anthropic.claude-sonnet-4-5-20250929-v1:0"
+# .env supplies shared model defaults; explicit CLI arguments still take precedence.
+META_MODEL_ID, LLM_AS_JUDGE, DEFAULT_MODEL_LIST = pipeline_models()
 META_MODEL_TEMPERATURE = 0.7
 META_MODEL_MAX_TOKENS = 8192
-
-# Available models for MAS worker agents. The meta-model can select from this
-# list when generating a new MAS config. Qwen3 235B leads as the default worker
-# model; Claude Sonnet/Haiku remain available for agents that need alternative
-# capabilities.
-DEFAULT_MODEL_LIST = [
-    "bedrock:us.anthropic.claude-3-5-sonnet-20241022-v2:0",
-    "bedrock:qwen.qwen3-235b-a22b-2507-v1:0",
-    "bedrock:qwen.qwen3-coder-480b-a35b-v1:0",
-]
 
 # Selection Settings
 NUM_PARENTS = 2  # Number of parent configurations to select (k)
@@ -72,7 +62,6 @@ COST_WEIGHT = "both"  # Cost metric: "tokens", "time", or "both"; Cost = tokens 
 # Evaluation Settings
 # LLM-as-judge is the default reward source for all datasets
 # This avoids requiring environment setup (e.g., for SWE-bench test execution)
-LLM_AS_JUDGE = "bedrock:global.anthropic.claude-sonnet-4-5-20250929-v1:0"  # Model ID for LLM-as-judge evaluation (None = use dataset evaluator)
 
 # Pool Management Settings
 IMPROVEMENT_THRESHOLD = 0.05  # Minimum reward improvement to add to pool (1%)
@@ -222,6 +211,8 @@ def run_evolution_pipeline(
     # Basic validation that applies regardless of batching
     if model_list is None:
         model_list = DEFAULT_MODEL_LIST
+    if not meta_model_id or not model_list:
+        raise ValueError("Set MODEL_ID in .env or provide --meta-model-id and --model-list")
     if max_steps < 1:
         raise ValueError(f"max_steps must be >= 1, got {max_steps}")
     if num_parents < 1:
@@ -393,6 +384,8 @@ def _run_single_batch(
     # Use default model list if not provided
     if model_list is None:
         model_list = DEFAULT_MODEL_LIST
+    if not meta_model_id or not model_list:
+        raise ValueError("Set MODEL_ID in .env or provide --meta-model-id and --model-list")
 
     # Parameter validation
     if max_steps < 1:
@@ -591,6 +584,7 @@ def _run_single_batch(
             model_list=model_list
         )
 
+        adapted_config = constrain_agent_models(adapted_config, model_list)
         adapted_path = temp_dir / f"step0_parent{p_idx}.yaml"
         save_config(adapted_config, str(adapted_path))
 
@@ -693,6 +687,7 @@ def _run_single_batch(
             offspring_path = temp_dir / f"step{step}_crossover.yaml"
 
         # Save and evaluate offspring
+        offspring_config = constrain_agent_models(offspring_config, model_list)
         save_config(offspring_config, str(offspring_path))
 
         logger.info(f"Evaluating {action_type} offspring...")
@@ -790,10 +785,12 @@ def _run_single_batch(
 
     # Compute parent rewards for comparison
     parent_stats_list = []
-    for parent_path in parent_paths:
+    for parent_idx, parent_path in enumerate(parent_paths):
         logger.info(f"Evaluating parent: {Path(parent_path).name}")
+        configured_parent = temp_dir / f"comparison_parent{parent_idx}.yaml"
+        save_config(constrain_agent_models(Path(parent_path).read_text(), model_list), str(configured_parent))
         parent_result = interpret_mas(
-            config_path=parent_path,
+            config_path=str(configured_parent),
             dataset_name=dataset_name,
             num_tasks=num_eval_tasks,
             task_ids=task_ids,
@@ -850,6 +847,7 @@ def _run_single_batch(
     # Save best config for final evaluation
     # Name it "evomas.yaml" so outputs go to output/{dataset}/evomas/
     final_config_path = temp_dir / "evomas.yaml"
+    final_config = constrain_agent_models(final_config, model_list)
     save_config(final_config, str(final_config_path))
 
     # Run final evaluation with save_outputs=True

@@ -35,11 +35,11 @@ agents:
     max_tokens: 4096
     temperature: 0.3
     device: null
-  # Role 4: Engineer - implements the actual fix (DefaultAgent/swe-agent for repo interaction)
+  # Role 4: Engineer - implements the actual fix (DefaultAgent/mini-swe-agent for repo interaction)
   engineer:
     id: engineer
     role: engineer
-    agent_type: SWEAgent
+    agent_type: DefaultAgent
     model_id: bedrock:us.anthropic.claude-sonnet-4-5-20250929-v1:0
     prompt: worker
     tools: []

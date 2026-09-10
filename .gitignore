@@ -34,3 +34,11 @@ swarm/.env
 # backup files
 data_backup/
 output_backup/
+
+# Track migration regression tests.
+!tests/test_*.py
+/dataset/*
+# Generated local SWE-bench environment maps.
+/dataset/swe_bench_*/setup_map.json
+/dataset/swe_bench_*/tasks_map.json
+/dataset/swe_bench_*/.setup.lock

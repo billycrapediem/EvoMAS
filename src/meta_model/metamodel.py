@@ -15,6 +15,7 @@ from typing import Dict, List, Any, Optional, Tuple
 from datetime import datetime
 
 from src.models.model import get_model
+from src.models.config import pipeline_models
 from src.prompts.registry import PromptRegistry
 from src.prompts.render import render_prompt
 from src.mas.interpreter import interpret_mas
@@ -102,7 +103,7 @@ class MetaModel:
 
     def __init__(
         self,
-        model_id: str = "bedrock:us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+        model_id: Optional[str] = None,
         temperature: float = 0.7,
         max_tokens: int = 8192,
         verbose: bool = True,
@@ -128,6 +129,9 @@ class MetaModel:
                 saved. Use False for evaluation-only runs where the existing
                 memory should not be mutated by this run.
         """
+        model_id = model_id or pipeline_models()[0]
+        if not model_id:
+            raise ValueError("Set MODEL_ID or the role-specific model override in .env")
         self.model_id = model_id
         self.temperature = temperature
         self.max_tokens = max_tokens

@@ -2,11 +2,11 @@ name: debate_swebench
 description: DAG-unrolled debate system with 6 agents x 3 rounds for SWE-bench tasks
 backend: smolagents
 agents:
-  # Round 1: Independent initial responses - DefaultAgent (swe-agent for repo interaction)
+  # Round 1: Independent initial responses - DefaultAgent (mini-swe-agent for repo interaction)
   d1_r1:
     id: d1_r1
     role: debater
-    agent_type: SWEAgent
+    agent_type: DefaultAgent
     model_id: bedrock:us.anthropic.claude-sonnet-4-5-20250929-v1:0
     prompt: debater_initial
     tools: []
@@ -16,7 +16,7 @@ agents:
   d2_r1:
     id: d2_r1
     role: debater
-    agent_type: SWEAgent
+    agent_type: DefaultAgent
     model_id: bedrock:us.anthropic.claude-sonnet-4-5-20250929-v1:0
     prompt: debater_initial
     tools: []
@@ -26,7 +26,7 @@ agents:
   d3_r1:
     id: d3_r1
     role: debater
-    agent_type: SWEAgent
+    agent_type: DefaultAgent
     model_id: bedrock:us.anthropic.claude-sonnet-4-5-20250929-v1:0
     prompt: debater_initial
     tools: []
@@ -36,7 +36,7 @@ agents:
   d4_r1:
     id: d4_r1
     role: debater
-    agent_type: SWEAgent
+    agent_type: DefaultAgent
     model_id: bedrock:us.anthropic.claude-sonnet-4-5-20250929-v1:0
     prompt: debater_initial
     tools: []
@@ -46,7 +46,7 @@ agents:
   d5_r1:
     id: d5_r1
     role: debater
-    agent_type: SWEAgent
+    agent_type: DefaultAgent
     model_id: bedrock:us.anthropic.claude-sonnet-4-5-20250929-v1:0
     prompt: debater_initial
     tools: []
@@ -56,7 +56,7 @@ agents:
   d6_r1:
     id: d6_r1
     role: debater
-    agent_type: SWEAgent
+    agent_type: DefaultAgent
     model_id: bedrock:us.anthropic.claude-sonnet-4-5-20250929-v1:0
     prompt: debater_initial
     tools: []

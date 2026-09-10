@@ -8,9 +8,8 @@ duckduckgo-search
 lancedb
 nltk
 pydantic
-swebench
-mini-swe-agent
-sweagent
+swebench==4.1.0
+mini-swe-agent==2.4.6
 smolagents[toolkit]
 smolagents[bedrock]
 PyYAML>=6.0

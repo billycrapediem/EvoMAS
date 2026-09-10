@@ -23,22 +23,27 @@ conda create -n mas python=3.11 -y
 conda activate mas
 pip install -r requirements.txt
 
-# API keys — only fill in the providers you'll use
+# Shared model, endpoint, and API key for all pipeline roles
 cp .env.example .env
 # then edit .env
 ```
 
-AWS Bedrock models use the standard credential chain (`aws configure`, env
-vars, or an EC2 instance role). No `.env` entry is needed when AWS CLI
-credentials are already set up.
+Set `MODEL_ID`, `BASE_URL`, and `API_KEY` in `.env`. By default, the full
+pipeline uses that model for the meta-model, judge, and all worker agents,
+including memory operations. The single-instance script uses the same shared
+configuration. For example, `MODEL_ID=openai:deepseek-v4-flash` selects DeepSeek
+through your OpenAI-compatible endpoint.
 
-**Note on model availability:** Some model IDs (e.g., on Bedrock) referenced
-in the default configuration and MAS pool files may be deprecated or retired
-over time. If you encounter model-not-found errors, update the model IDs to
-currently available versions. You can override model IDs without editing source
-code via `META_MODEL`, `JUDGE_MODEL`, and `AGENT_MODELS` environment variables
-(see [Editing parameters](#editing-parameters)), or pass `--meta-model-id` /
-`--model-list` flags to `main.py` directly.
+Optional `META_MODEL`, `JUDGE_MODEL`, and space-separated `AGENT_MODELS` values
+in `.env` override individual pipeline roles. Exported variables override the
+same keys in `.env`; explicit `main.py` model flags override role defaults.
+OpenAI-compatible roles share `BASE_URL` and `API_KEY`. Native Bedrock,
+Anthropic, and Google overrides use their own provider credentials.
+
+Pool files are retained as templates. Before evaluation, models outside the
+configured agent palette are replaced with its first model in temporary copies;
+allowed models are preserved. This also applies to generated configurations and
+parent comparisons, so old pool defaults cannot silently select Bedrock.
 
 ## Download datasets
 
@@ -119,9 +124,9 @@ Override any of them before invoking a script:
 | `SEED` | `42` | Random seed |
 | `BATCH_SIZE` | `1` | Tasks per evolution batch (1 = per-query; `N` = one shared trajectory over N tasks) |
 | `WORKERS` | `16` | Parallel batches (ThreadPoolExecutor) |
-| `META_MODEL` | `bedrock:global.anthropic.claude-sonnet-4-5-...` | Evolutionary-operator LLM |
+| `META_MODEL` | `MODEL_ID` from `.env` | Evolutionary-operator LLM |
 | `JUDGE_MODEL` | same as `META_MODEL` | LLM-as-judge for reward |
-| `AGENT_MODELS` | `bedrock:us.anthropic.claude-3-5-sonnet-... bedrock:qwen.qwen3-235b-... bedrock:qwen.qwen3-coder-480b-...` | Space-separated worker model palette |
+| `AGENT_MODELS` | `MODEL_ID` from `.env` | Space-separated worker model palette |
 | `MEMORY_EVOLUTION` | `true` | Persist meta-model memory updates |
 | `MEMORY_PATH` | (auto) | Explicit memory JSON path; empty = `dataset/<subset-path>/memory_<ts>.json` |
 | `OUTPUT_ROOT` | `output_paper` | Root directory for run outputs |
@@ -171,3 +176,60 @@ CLI flags mirror the env-var names (`--num-eval-tasks`, `--batch-size`,
 `--workers`, `--memory-path`, `--memory-evolution`, `--task-ids`, etc.).
 `--task-ids` accepts int indices (BBEH / WorkBench) or string instance IDs
 (SWE-bench, e.g. `astropy__astropy-12907`).
+
+### One-problem SWE-bench Verified smoke test
+
+SWE-bench agents use `mini-swe-agent==2.4.6`. The local evaluator uses
+`swebench==4.1.0` for reproducible upstream installation recipes. Install the
+updated requirements in the `mas` environment before running.
+
+Copy `.env.example` to `.env` and fill in `MODEL_ID`, `BASE_URL`, and `API_KEY`.
+Use `openai:your-model` for an OpenAI-compatible custom endpoint. Exported
+variables take precedence over `.env`. Credentials are excluded from saved
+configuration and trajectories.
+
+```bash
+scripts/prepare_datasets.sh --swe-only  # skip if already downloaded
+scripts/run_swebench_one.sh
+# Select exactly one other Verified instance:
+scripts/run_swebench_one.sh astropy__astropy-13033
+```
+
+The default is `astropy__astropy-12907`, with 250 steps, a $3 agent cost limit,
+and a 1,800-second agent timeout. Override these with `--step-limit`,
+`--cost-limit`, and `--timeout`; use `CONDA_ENV` to select the driver environment.
+Cost limits use LiteLLM pricing metadata. OpenAI-compatible aliases use the
+canonical model's rates when available; the trajectory records this pricing
+source. These are estimates for custom endpoints. Set `LITELLM_MODEL_REGISTRY_PATH`
+to supply the endpoint's actual rates or register an unknown model. Cost
+accounting is never silently disabled.
+
+The script reuses downloaded task JSON and prepares only the selected repository
+and Conda environment in an isolated workspace. It first checks the reference
+patch with the local evaluator, then calls EvoMAS's single-task runtime without
+evolution, a judge, or prediction caching. Reference code and test patches are
+not passed to the agent. The script saves its patch, redacted trajectory,
+configuration, test logs, and JSON reports in `output_paper/swebench_one/run_*`.
+Exit codes are `0` for full resolution, `1` for an unresolved patch, and `2` for
+an execution, setup, or evaluation error. These are local evaluator results,
+not official Docker leaderboard scores.
+
+Use `--reference-only` to test environment setup without model calls. Reuse a
+completed setup with `--workspace <previous-run>/workspace`; prediction and test
+execution still run again. Workspaces are retained for inspection and can be
+removed when no longer needed.
+
+Old `backend: sweagent` and `agent_type: SWEAgent` configurations are rejected.
+Change them to `backend: minisweagent` and `agent_type: DefaultAgent`; the shipped
+single-agent configuration is now `mas_pools/swebench/single_minisweagent.yaml`.
+Custom agent YAML must follow mini-swe-agent v2's `agent`, `model`, and
+`environment` sections. Relative config paths resolve from the EvoMAS root.
+The `default` and `swebench` aliases use the installed upstream SWE-bench config;
+`simple` uses the same config with a 20-step limit. For a prepared Conda
+environment, set `environment.conda_env` to its name.
+
+Offline regression checks (no model calls):
+
+```bash
+conda run -n mas python -m unittest discover -s tests -v
+```

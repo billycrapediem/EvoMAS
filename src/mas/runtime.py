@@ -13,7 +13,6 @@ from src.agents.runners.base import BaseAgentRunner
 # Lazy imports for runners to avoid loading unused packages
 # from src.agents.runners.smolagents import SmolagentsRunner
 # from src.agents.runners.minisweagent import MinisweagentRunner
-# from src.agents.runners.sweagent import SWEAgentRunner
 
 logger = logging.getLogger(__name__)
 
@@ -27,8 +26,7 @@ def _get_runner_class(backend: str):
         from src.agents.runners.minisweagent import MinisweagentRunner
         return MinisweagentRunner
     elif backend == "sweagent":
-        from src.agents.runners.sweagent import SWEAgentRunner
-        return SWEAgentRunner
+        raise ValueError("The sweagent backend was removed; use minisweagent with agent_type DefaultAgent")
     elif backend == "langchain":
         raise NotImplementedError("Langchain backend is not yet implemented")
     else:
@@ -291,6 +289,8 @@ class MasRuntime:
 
         except Exception as e:
             logger.error(f"Agent {agent_id} execution failed: {e}")
+            if len(self.mas_spec.agents) == 1:
+                raise
             context.add_report(agent_id, f"Error: {str(e)}")
 
     def _aggregate_metadata_from_context(self, context: Context) -> Dict[str, Any]:

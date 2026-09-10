@@ -3,7 +3,7 @@ Agent specification classes.
 """
 
 from typing import List, Optional, Any, Dict
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 # Mapping from agent_type to backend runtime
@@ -14,8 +14,6 @@ AGENT_TYPE_TO_BACKEND = {
     "ToolCallingAgent": "smolagents",
     # minisweagent agent types
     "DefaultAgent": "minisweagent",
-    # sweagent agent types
-    "SWEAgent": "sweagent",
 }
 
 
@@ -28,6 +26,8 @@ def get_backend_for_agent_type(agent_type: str) -> Optional[str]:
     Returns:
         The backend name or None if not found
     """
+    if agent_type == "SWEAgent":
+        raise ValueError("SWEAgent was removed; use DefaultAgent with backend minisweagent")
     return AGENT_TYPE_TO_BACKEND.get(agent_type)
 
 
@@ -47,6 +47,13 @@ class AgentSpec(BaseModel):
     device: Optional[str] = Field(default=None, description="Reserved for future use.")
     backend: Optional[str] = Field(default=None, description="Per-agent backend override (e.g., 'smolagents', 'minisweagent'). If None, uses MAS-level backend.")
     additional_params: Dict[str, Any] = Field(default_factory=dict, description="Additional agent-specific parameters")
+
+    @field_validator("agent_type", "backend")
+    @classmethod
+    def reject_legacy_sweagent(cls, value):
+        if value in ("SWEAgent", "sweagent"):
+            raise ValueError("SWE-agent was removed; use agent_type DefaultAgent and backend minisweagent")
+        return value
 
     class Config:
         extra = "allow"

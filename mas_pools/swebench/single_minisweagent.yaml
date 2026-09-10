@@ -1,11 +1,11 @@
-name: single_sweagent_swebench
+name: single_minisweagent_swebench
 description: Single mini-swe-agent for SWE-bench
-backend: sweagent
+backend: minisweagent
 agents:
   worker:
     id: worker
     role: worker
-    agent_type: SWEAgent
+    agent_type: DefaultAgent
     model_id: bedrock:qwen.qwen3-235b-a22b-2507-v1:0
     prompt: worker
     tools: []

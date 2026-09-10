@@ -616,9 +616,9 @@ class MasRunner:
                 text=True
             )
 
-            # Clean ALL untracked files including ignored ones
+            # Remove agent-created files while preserving installed build artifacts.
             subprocess.run(
-                ["git", "clean", "-fdx"],
+                ["git", "clean", "-fd"],
                 cwd=repo_path,
                 check=True,
                 capture_output=True,
@@ -750,73 +750,6 @@ class MasRunner:
             if e.stderr:
                 logger.error(f"   Error: {e.stderr}")
             return False
-
-    def _cleanup_sweagent_artifacts(self) -> None:
-        """
-        Clean up SWE-agent artifacts from home directory and /tmp.
-
-        SWE-agent creates test files like reproduce_issue.py in the home
-        directory which can persist between runs and cause issues.
-        This method removes these artifacts after each task.
-        """
-        import glob
-        import shutil
-
-        # Patterns for SWE-agent created files in home directories
-        home_dirs = [Path.home(), Path("/root")]
-        artifact_patterns = [
-            "reproduce_issue.py",
-            "reproduce_bug.py",
-            "test_fix.py",
-            "test_*.py",
-            "debug_*.py",
-            "check_*.py",
-            "verify_*.py",
-            "run_test*.py",
-            "*.patch",
-            # Additional patterns for files created by agents
-            "*_test.py",
-            "explore_*.py",
-            "final_*.py",
-            "*_demo.py",
-            "*_verification.py",
-            "*_comprehensive*.py",
-            "pr_*.py",
-            "edge_case*.py",
-        ]
-
-        for home_dir in home_dirs:
-            if not home_dir.exists():
-                continue
-
-            for pattern in artifact_patterns:
-                for filepath in home_dir.glob(pattern):
-                    try:
-                        if filepath.is_file():
-                            filepath.unlink()
-                            logger.debug(f"Cleaned up SWE-agent artifact: {filepath}")
-                    except Exception as e:
-                        logger.warning(f"Failed to remove {filepath}: {e}")
-
-        # Clean up /tmp files created by SWE-agent
-        tmp_patterns = [
-            "/tmp/sweagent_*",
-            "/tmp/swe_agent_*",
-            "/tmp/reproduce_*",
-            "/tmp/test_fix_*",
-        ]
-
-        for pattern in tmp_patterns:
-            for filepath in glob.glob(pattern):
-                try:
-                    path = Path(filepath)
-                    if path.is_dir():
-                        shutil.rmtree(path, ignore_errors=True)
-                    else:
-                        path.unlink()
-                    logger.debug(f"Cleaned up temp artifact: {filepath}")
-                except Exception as e:
-                    logger.warning(f"Failed to remove {filepath}: {e}")
 
     def _evaluate_result(self, result: str, ground_truth: Any, query: str = None) -> Optional[bool]:
         """
@@ -1140,7 +1073,7 @@ class MasRunner:
                     if repo_name:
                         # Extract repo name (e.g., "django/django" -> "django")
                         repo_simple = repo_name.split('/')[-1]
-                        repo_path = str(Path(REPOS_DIR) / repo_simple)
+                        repo_path = str(Path(os.environ.get("EVOMAS_REPOS_DIR", REPOS_DIR)) / repo_simple)
 
                         # Check for source subdirectory (e.g., django-src for django)
                         # Some repos have submodule structure with {name}-src containing actual code
@@ -1162,11 +1095,11 @@ class MasRunner:
                         if not self._checkout_base_commit(repo_path, base_commit):
                             raise RuntimeError(f"Failed to checkout base commit {base_commit[:8]} for {task.id}")
 
-                    # Check backend type - minisweagent/sweagent have their own templates with proper formatting
+                    # Check backend type - mini-swe-agent have their own templates with proper formatting
                     backend = self._mas_spec.backend if self._mas_spec else None
 
-                    if backend in ("minisweagent", "sweagent"):
-                        # For minisweagent/sweagent: pass minimal info, let agent's config templates handle formatting
+                    if backend == "minisweagent":
+                        # For mini-swe-agent: pass minimal info, let agent's config templates handle formatting
                         # The instance_template in config uses {{task}} for the problem statement
                         task_query = f"""Repository: {repo_path}
 Instance ID: {task.id}
@@ -1270,8 +1203,6 @@ Do NOT include any explanations, markdown formatting, or other text. ONLY output
             if repo_path and Path(repo_path).exists():
                 self._recover_repository(repo_path)
 
-            # Clean up SWE-agent artifacts from home directory and /tmp
-            self._cleanup_sweagent_artifacts()
 
             # Release repository lock
             if repo_lock:
@@ -1397,7 +1328,7 @@ Do NOT include any explanations, markdown formatting, or other text. ONLY output
                         if repo_name:
                             # Extract repo name (e.g., "django/django" -> "django")
                             repo_simple = repo_name.split('/')[-1]
-                            repo_path = str(Path(REPOS_DIR) / repo_simple)
+                            repo_path = str(Path(os.environ.get("EVOMAS_REPOS_DIR", REPOS_DIR)) / repo_simple)
 
                             # Check for source subdirectory (e.g., django-src for django)
                             # Some repos have submodule structure with {name}-src containing actual code
@@ -1511,7 +1442,6 @@ Do NOT include any explanations, markdown formatting, or other text. ONLY output
                     self._recover_repository(repo_path)
 
                 # Clean up SWE-agent artifacts from home directory and /tmp
-                self._cleanup_sweagent_artifacts()
 
                 # Release repository lock
                 if repo_lock:

@@ -24,11 +24,11 @@ agents:
     max_tokens: 4096
     temperature: 0.3
     device: null
-  # Phase 2 - Coding: Programmer implements the fix (swe-agent for repo interaction)
+  # Phase 2 - Coding: Programmer implements the fix (mini-swe-agent for repo interaction)
   programmer:
     id: programmer
     role: programmer
-    agent_type: SWEAgent
+    agent_type: DefaultAgent
     model_id: bedrock:us.anthropic.claude-sonnet-4-5-20250929-v1:0
     prompt: worker
     tools: []

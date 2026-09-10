@@ -16,23 +16,14 @@ cd "$REPO_ROOT"
 CONDA_ENV="${CONDA_ENV:-mas}"
 PY_RUN=(conda run -n "$CONDA_ENV" --no-capture-output python -u)
 
-# --- Model defaults ---
-# Meta-model and judge share the same Sonnet 4.5 default so the reward
-# signal and the evolutionary operator use the same reasoning backbone.
-META_MODEL="${META_MODEL:-bedrock:global.anthropic.claude-sonnet-4-5-20250929-v1:0}"
-JUDGE_MODEL="${JUDGE_MODEL:-$META_MODEL}"
-
-# Worker model palette the meta-model can choose from when generating MAS
-# configs. Override via `AGENT_MODELS="id1 id2 id3" ./script.sh`.
-if [[ -n "${AGENT_MODELS:-}" ]]; then
-    read -ra AGENT_MODELS <<< "$AGENT_MODELS"
-else
-    AGENT_MODELS=(
-        "bedrock:us.anthropic.claude-3-5-sonnet-20241022-v2:0"
-        "bedrock:qwen.qwen3-235b-a22b-2507-v1:0"
-        "bedrock:qwen.qwen3-coder-480b-a35b-v1:0"
-    )
-fi
+# Resolve model roles through the same dotenv loader used by main.py.
+# Only model IDs cross into the shell; credentials stay in the Python clients.
+MODEL_SETTINGS="$("${PY_RUN[@]}" "$REPO_ROOT/src/models/config.py")"
+mapfile -t MODEL_ROLES <<< "$MODEL_SETTINGS"
+META_MODEL="${MODEL_ROLES[0]}"
+JUDGE_MODEL="${MODEL_ROLES[1]}"
+AGENT_MODELS=("${MODEL_ROLES[@]:2}")
+unset MODEL_SETTINGS MODEL_ROLES
 
 # --- Pipeline hyperparameters ---
 # NUM_EVAL_TASKS is intentionally left unset so each per-dataset run script

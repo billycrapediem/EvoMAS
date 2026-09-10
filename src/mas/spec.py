@@ -3,7 +3,7 @@ MAS specification using Pydantic.
 """
 
 from typing import Dict, List, Any, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from src.agents.spec import AgentSpec
 from src.topology.routing import RoutingConfig
@@ -36,11 +36,18 @@ class MasSpec(BaseModel):
 
     name: str = Field(..., description="Name of the MAS")
     description: Optional[str] = Field(default=None, description="Description of what this MAS does")
-    backend: str = Field(default="smolagents", description="Backend runner (smolagents, sweagent, etc.)")
+    backend: str = Field(default="smolagents", description="Backend runner (smolagents, minisweagent, etc.)")
 
     agents: Dict[str, AgentSpec] = Field(..., description="Agent specifications by agent_id")
     topology: RoutingConfig = Field(..., description="Communication topology and routing")
     execution: ExecutionConfig = Field(default_factory=ExecutionConfig, description="Execution configuration")
+
+    @field_validator("backend")
+    @classmethod
+    def reject_legacy_sweagent(cls, value):
+        if value == "sweagent":
+            raise ValueError("SWE-agent was removed; use backend minisweagent")
+        return value
 
     class Config:
         extra = "allow"

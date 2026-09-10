@@ -5,7 +5,7 @@ agents:
   worker1:
     id: worker1
     role: worker
-    agent_type: SWEAgent
+    agent_type: DefaultAgent
     model_id: bedrock:qwen.qwen3-235b-a22b-2507-v1:0
     prompt: worker
     tools: []
@@ -15,7 +15,7 @@ agents:
   worker2:
     id: worker2
     role: worker
-    agent_type: SWEAgent
+    agent_type: DefaultAgent
     model_id: bedrock:qwen.qwen3-235b-a22b-2507-v1:0
     prompt: worker
     tools: []
@@ -25,7 +25,7 @@ agents:
   worker3:
     id: worker3
     role: worker
-    agent_type: SWEAgent
+    agent_type: DefaultAgent
     model_id: bedrock:qwen.qwen3-235b-a22b-2507-v1:0
     prompt: worker
     tools: []
@@ -35,7 +35,7 @@ agents:
   worker4:
     id: worker4
     role: worker
-    agent_type: SWEAgent
+    agent_type: DefaultAgent
     model_id: bedrock:qwen.qwen3-235b-a22b-2507-v1:0
     prompt: worker
     tools: []
@@ -45,7 +45,7 @@ agents:
   worker5:
     id: worker5
     role: worker
-    agent_type: SWEAgent
+    agent_type: DefaultAgent
     model_id: bedrock:qwen.qwen3-235b-a22b-2507-v1:0
     prompt: worker
     tools: []
@@ -55,7 +55,7 @@ agents:
   worker6:
     id: worker6
     role: worker
-    agent_type: SWEAgent
+    agent_type: DefaultAgent
     model_id: bedrock:qwen.qwen3-235b-a22b-2507-v1:0
     prompt: worker
     tools: []

@@ -102,6 +102,7 @@ def install_base_packages(env_name: str) -> bool:
             capture_output=True,
             text=True,
             timeout=300,
+            check=True,
         )
 
         # Then install test packages
@@ -115,7 +116,7 @@ def install_base_packages(env_name: str) -> bool:
         return True
     except Exception as e:
         print(f"Warning: Package installation had issues: {e}")
-        return True  # Continue anyway
+        return False
 
 
 def setup_repository(env_name: str, repo_path: str, commit: str,
@@ -152,10 +153,12 @@ def setup_repository(env_name: str, repo_path: str, commit: str,
                 ["bash", "-c", full_cmd],
                 capture_output=True,
                 text=True,
-                timeout=600
+                timeout=600,
+                check=True
             )
         except Exception as e:
             print(f"Warning: Pre-install command failed: {e}")
+            return False
 
     # Main install
     if install_cmd:
@@ -165,7 +168,8 @@ def setup_repository(env_name: str, repo_path: str, commit: str,
                 ["bash", "-c", full_cmd],
                 capture_output=True,
                 text=True,
-                timeout=600
+                timeout=600,
+                check=True
             )
 
             if result.returncode != 0:
@@ -232,16 +236,22 @@ def ensure_env_ready(instance_id: str, dataset: str = "swe_bench_lite",
             return None
 
         # Step 2: Install base packages
-        install_base_packages(env_name)
+        if not install_base_packages(env_name):
+            cleanup_env(env_name)
+            return None
 
         # Step 3: Setup repository
-        setup_repository(
+        ready = setup_repository(
             env_name,
             setup['repo_path'],
             task['base_commit'],
             setup.get('pre_install', []),
             setup.get('install', '')
         )
+
+        if not ready:
+            cleanup_env(env_name)
+            return None
 
         # Mark as created
         _created_envs.add(env_name)

@@ -2,11 +2,11 @@ name: peer_review_swebench
 description: DAG-unrolled peer review (create→review→revise→aggregate) for SWE-bench tasks
 backend: smolagents
 agents:
-  # Stage 1: Create - DefaultAgent (swe-agent for repo interaction)
+  # Stage 1: Create - DefaultAgent (mini-swe-agent for repo interaction)
   creator1:
     id: creator1
     role: creator
-    agent_type: SWEAgent
+    agent_type: DefaultAgent
     model_id: bedrock:us.anthropic.claude-sonnet-4-5-20250929-v1:0
     prompt: reviewer_create
     tools: []
@@ -16,7 +16,7 @@ agents:
   creator2:
     id: creator2
     role: creator
-    agent_type: SWEAgent
+    agent_type: DefaultAgent
     model_id: bedrock:us.anthropic.claude-sonnet-4-5-20250929-v1:0
     prompt: reviewer_create
     tools: []
@@ -26,7 +26,7 @@ agents:
   creator3:
     id: creator3
     role: creator
-    agent_type: SWEAgent
+    agent_type: DefaultAgent
     model_id: bedrock:us.anthropic.claude-sonnet-4-5-20250929-v1:0
     prompt: reviewer_create
     tools: []
@@ -36,7 +36,7 @@ agents:
   creator4:
     id: creator4
     role: creator
-    agent_type: SWEAgent
+    agent_type: DefaultAgent
     model_id: bedrock:us.anthropic.claude-sonnet-4-5-20250929-v1:0
     prompt: reviewer_create
     tools: []
@@ -46,7 +46,7 @@ agents:
   creator5:
     id: creator5
     role: creator
-    agent_type: SWEAgent
+    agent_type: DefaultAgent
     model_id: bedrock:us.anthropic.claude-sonnet-4-5-20250929-v1:0
     prompt: reviewer_create
     tools: []
@@ -56,14 +56,14 @@ agents:
   creator6:
     id: creator6
     role: creator
-    agent_type: SWEAgent
+    agent_type: DefaultAgent
     model_id: bedrock:us.anthropic.claude-sonnet-4-5-20250929-v1:0
     prompt: reviewer_create
     tools: []
     max_tokens: 4096
     temperature: 0.7
     device: null
-  # Stage 2: Review - CodeAgent (needs custom review prompt, sweagent is prompt-fixed)
+  # Stage 2: Review - CodeAgent (needs custom review prompt, uses its own review prompt)
   reviewer1:
     id: reviewer1
     role: reviewer

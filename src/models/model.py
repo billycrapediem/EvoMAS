@@ -1,11 +1,11 @@
 import os
 from typing import Any, Optional, List, Dict, Union, Tuple
-from dotenv import load_dotenv
+from src.models.config import load_model_environment
 import logging
 import json
 import yaml
 
-load_dotenv()
+load_model_environment()
 logger = logging.getLogger(__name__)
 
 try:
@@ -483,13 +483,16 @@ class OpenAIModel:
         max_tokens: int = 4096,
         temperature: float = 0.7,
         top_p: float = 1.0,
+        base_url: Optional[str] = None,
         **kwargs
     ):
         self.model = model
         self.max_tokens = max_tokens
         self.temperature = temperature
         self.top_p = top_p
-        self.api_key = api_key or os.environ.get("OPENAI_API_KEY")
+        load_model_environment()
+        self.api_key = api_key or os.environ.get("API_KEY") or os.environ.get("OPENAI_API_KEY")
+        self.base_url = base_url or os.environ.get("BASE_URL") or os.environ.get("OPENAI_BASE_URL")
 
         # Token usage tracking (cumulative across all calls)
         self._cumulative_input_tokens = 0
@@ -497,13 +500,13 @@ class OpenAIModel:
         self._cumulative_reasoning_tokens = 0
 
         if not self.api_key:
-            raise ValueError("OPENAI_API_KEY not found in environment variables or parameters")
+            raise ValueError("API_KEY (or OPENAI_API_KEY) not found in .env, environment variables or parameters")
 
         # Try to import openai
         try:
             import openai
             self.openai = openai
-            self.client = openai.OpenAI(api_key=self.api_key, max_retries=10, timeout=120.0)
+            self.client = openai.OpenAI(api_key=self.api_key, base_url=self.base_url, max_retries=10, timeout=120.0)
             logger.info(f"Initialized OpenAI model: {model}")
         except ImportError:
             raise ImportError("openai library is required for OpenAI models. Install with: pip install openai")
